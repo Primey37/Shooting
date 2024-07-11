@@ -9,6 +9,9 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "Kismet/GameplayStatics.h"
+#include "OnlineSubsystem.h"
+
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -49,6 +52,16 @@ AShootingCharacter::AShootingCharacter()
 
 	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
 	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
+	IOnlineSubsystem* OnlineSubsystem = IOnlineSubsystem::Get();
+	if (OnlineSubsystem) {
+		OnlineSessionInterface = OnlineSubsystem->GetSessionInterface();
+		if (GEngine) {
+			GEngine->AddOnScreenDebugMessage(
+				-1, 15.f, FColor::Black, FString::Printf(TEXT("OnlineSubsystem is %s"), *OnlineSubsystem->GetSubsystemName().ToString())
+			);
+		}
+	}
+
 }
 
 void AShootingCharacter::BeginPlay()
@@ -64,6 +77,35 @@ void AShootingCharacter::BeginPlay()
 			Subsystem->AddMappingContext(DefaultMappingContext, 0);
 		}
 	}
+}
+
+void AShootingCharacter::OpenMPTesting()
+{
+	UWorld* World = GetWorld();
+	if (World) {
+		World->ServerTravel("/Game/ThirdPerson/Maps/MPTesting?listen");
+	}
+}
+
+void AShootingCharacter::CallOpenLevel(const FString& Address)
+{
+	UGameplayStatics::OpenLevel(this, *Address);
+}
+
+void AShootingCharacter::CallClientTravel(const FString& Address)
+{
+	APlayerController* PlayController = GetGameInstance()->GetFirstLocalPlayerController();
+	if (PlayController) {
+		PlayController->ClientTravel(Address, ETravelType::TRAVEL_Absolute);
+	}
+}
+
+void AShootingCharacter::CreateGameSession()
+{
+}
+
+void AShootingCharacter::OnCreateSessionComplete(FName SessionName, bool WasSuccessful)
+{
 }
 
 //////////////////////////////////////////////////////////////////////////
