@@ -9,6 +9,7 @@
 #include "ShootingCharacter.generated.h"
 
 
+
 UCLASS(config=Game)
 class AShootingCharacter : public ACharacter
 {
@@ -38,6 +39,9 @@ class AShootingCharacter : public ACharacter
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	class UInputAction* LookAction;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	class UInputAction* Delegate;
+
 public:
 	AShootingCharacter();
 	
@@ -63,6 +67,13 @@ public:
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	/** Returns FollowCamera subobject **/
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
+
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE(FTestDelegate);
+
+	FTestDelegate Test;
+
+	UFUNCTION(BlueprintCallable)
+	void ToTestDelegate();
 
 	UFUNCTION(BlueprintCallable)
 	void OpenMPTesting();

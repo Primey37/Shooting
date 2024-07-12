@@ -11,13 +11,15 @@
 #include "EnhancedInputSubsystems.h"
 #include "Kismet/GameplayStatics.h"
 #include "OnlineSubsystem.h"
+#include "OnlineSessionSettings.h"
 
 
 
 //////////////////////////////////////////////////////////////////////////
 // AShootingCharacter
 
-AShootingCharacter::AShootingCharacter()
+AShootingCharacter::AShootingCharacter():
+	CreateSessionCompleteDelegete(FOnCreateSessionCompleteDelegate::CreateUObject(this,&AShootingCharacter::OnCreateSessionComplete))
 {
 	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
@@ -77,6 +79,13 @@ void AShootingCharacter::BeginPlay()
 			Subsystem->AddMappingContext(DefaultMappingContext, 0);
 		}
 	}
+	UE_LOG(LogTemp, Warning, TEXT("%s"), *GetName());
+}
+
+void AShootingCharacter::ToTestDelegate()
+{
+	Test.Broadcast();
+	UE_LOG(LogTemp, Warning, TEXT("called"));
 }
 
 void AShootingCharacter::OpenMPTesting()
@@ -102,10 +111,47 @@ void AShootingCharacter::CallClientTravel(const FString& Address)
 
 void AShootingCharacter::CreateGameSession()
 {
+	if (!OnlineSessionInterface.IsValid()) {
+		return;
+	}
+
+	auto ExistingSession = OnlineSessionInterface->GetNamedSession(NAME_GameSession);
+	if (ExistingSession) {
+		OnlineSessionInterface->DestroySession(NAME_GameSession);
+	}
+	OnlineSessionInterface->AddOnCreateSessionCompleteDelegate_Handle(CreateSessionCompleteDelegete);
+	TSharedPtr<FOnlineSessionSettings> SessionSettings = MakeShareable(new FOnlineSessionSettings());
+	SessionSettings->bAllowJoinInProgress = true;
+	SessionSettings->bAllowJoinViaPresence = true;
+	SessionSettings->bIsLANMatch = false;
+	SessionSettings->bShouldAdvertise = true;
+	SessionSettings->NumPublicConnections = 4;
+	SessionSettings->bUsesPresence = true;
+	const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
+	OnlineSessionInterface->CreateSession(*LocalPlayer->GetPreferredUniqueNetId(), NAME_GameSession, *SessionSettings);
 }
 
 void AShootingCharacter::OnCreateSessionComplete(FName SessionName, bool WasSuccessful)
 {
+	if (WasSuccessful) {
+		if (GEngine) {
+			GEngine->AddOnScreenDebugMessage(-1,
+				15.f,
+				FColor::Blue,
+				FString::Printf(TEXT("create session %s"), *SessionName.ToString())
+			);
+		}
+	}
+	else
+	{
+		if (GEngine) {
+			GEngine->AddOnScreenDebugMessage(-1,
+				15.f,
+				FColor::Blue,
+				TEXT("create session fail")
+			);
+		}
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -125,7 +171,8 @@ void AShootingCharacter::SetupPlayerInputComponent(class UInputComponent* Player
 
 		//Looking
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &AShootingCharacter::Look);
-
+		
+		EnhancedInputComponent->BindAction(Delegate, ETriggerEvent::Started, this, &AShootingCharacter::ToTestDelegate);
 	}
 
 }
