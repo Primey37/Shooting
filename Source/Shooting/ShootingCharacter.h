@@ -88,10 +88,24 @@ public:
 	void CreateGameSession();
 
 	UFUNCTION(BlueprintCallable)
+	void JoinGameSession();
+
+	TSharedPtr<FOnlineSessionSearch> SessionSearch;
+
+	UFUNCTION(BlueprintCallable)
 	void OnCreateSessionComplete(FName SessionName, bool WasSuccessful);
+
+	UFUNCTION(BlueprintCallable)
+	void OnFindSessionComplete(bool IfFind);
+
+	void OnJoinSessionComplete(FName SessionName, EOnJoinSessionCompleteResult::Type Result);
 
 	IOnlineSessionPtr OnlineSessionInterface;
 
 	FOnCreateSessionCompleteDelegate CreateSessionCompleteDelegete;
+
+	FOnFindSessionsCompleteDelegate FindSessionCompleteDelegate;
+
+	FOnJoinSessionCompleteDelegate JoinSessionCompleteDelegate;
 };
 

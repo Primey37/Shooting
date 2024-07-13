@@ -18,8 +18,10 @@
 //////////////////////////////////////////////////////////////////////////
 // AShootingCharacter
 
-AShootingCharacter::AShootingCharacter():
-	CreateSessionCompleteDelegete(FOnCreateSessionCompleteDelegate::CreateUObject(this,&AShootingCharacter::OnCreateSessionComplete))
+AShootingCharacter::AShootingCharacter() :
+	CreateSessionCompleteDelegete(FOnCreateSessionCompleteDelegate::CreateUObject(this, &AShootingCharacter::OnCreateSessionComplete)),
+	FindSessionCompleteDelegate(FOnFindSessionsCompleteDelegate::CreateUObject(this, &AShootingCharacter::OnFindSessionComplete)),
+	JoinSessionCompleteDelegate(FOnJoinSessionCompleteDelegate::CreateUObject(this,&AShootingCharacter::OnJoinSessionComplete))
 {
 	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
@@ -127,8 +129,29 @@ void AShootingCharacter::CreateGameSession()
 	SessionSettings->bShouldAdvertise = true;
 	SessionSettings->NumPublicConnections = 4;
 	SessionSettings->bUsesPresence = true;
+	SessionSettings->bUseLobbiesIfAvailable = true;
+	SessionSettings->Set(FName("MatchType"), FString("FreeForAll"), EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
 	const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
 	OnlineSessionInterface->CreateSession(*LocalPlayer->GetPreferredUniqueNetId(), NAME_GameSession, *SessionSettings);
+}
+
+void AShootingCharacter::JoinGameSession()
+{
+	if (!OnlineSessionInterface.IsValid()) {
+		return;
+	}
+
+	OnlineSessionInterface->AddOnFindSessionsCompleteDelegate_Handle(FindSessionCompleteDelegate);
+
+	SessionSearch = MakeShareable(new FOnlineSessionSearch());
+	SessionSearch->MaxSearchResults = 10000;
+	SessionSearch->bIsLanQuery = false;
+	SessionSearch->QuerySettings.Set(SEARCH_PRESENCE, true, EOnlineComparisonOp::Equals);
+
+	const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
+
+	OnlineSessionInterface->FindSessions(*LocalPlayer->GetPreferredUniqueNetId(), SessionSearch.ToSharedRef());
+
 }
 
 void AShootingCharacter::OnCreateSessionComplete(FName SessionName, bool WasSuccessful)
@@ -141,6 +164,10 @@ void AShootingCharacter::OnCreateSessionComplete(FName SessionName, bool WasSucc
 				FString::Printf(TEXT("create session %s"), *SessionName.ToString())
 			);
 		}
+		UWorld* World = GetWorld();
+		if (World) {
+			World->ServerTravel(FString("/Game/ThirdPerson/Maps/MPTesting?listen"));
+		}
 	}
 	else
 	{
@@ -151,6 +178,53 @@ void AShootingCharacter::OnCreateSessionComplete(FName SessionName, bool WasSucc
 				TEXT("create session fail")
 			);
 		}
+	}
+}
+
+void AShootingCharacter::OnFindSessionComplete(bool IfFind)
+{
+	if (IfFind) {
+		for (auto SearchResult : SessionSearch->SearchResults) {
+			FString Id = SearchResult.GetSessionIdStr();
+			FString UserName = SearchResult.Session.OwningUserName;
+			FString MatchType;
+			SearchResult.Session.SessionSettings.Get(FName("MatchType"), MatchType);
+			if (GEngine) {
+				GEngine->AddOnScreenDebugMessage(
+					-1,
+					15.f,
+					FColor::Cyan,
+					FString::Printf(TEXT("Id is %s UserName is %s"), *Id, *UserName)
+				);
+			}
+			if (MatchType == FString("FreeForAll")) {
+				OnlineSessionInterface->AddOnJoinSessionCompleteDelegate_Handle(JoinSessionCompleteDelegate);
+				ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
+				OnlineSessionInterface->JoinSession(*LocalPlayer->GetPreferredUniqueNetId(), NAME_GameSession,SearchResult);
+			}
+		}
+	}
+	else
+	{
+		if (GEngine) {
+			GEngine->AddOnScreenDebugMessage(
+				-1,
+				15.f,
+				FColor::Cyan,
+				TEXT("can not find")
+			);
+		}
+	}
+}
+
+void AShootingCharacter::OnJoinSessionComplete(FName SessionName, EOnJoinSessionCompleteResult::Type Result)
+{
+	if (!OnlineSessionInterface.IsValid()) return;
+	FString Address;
+	OnlineSessionInterface->GetResolvedConnectString(NAME_GameSession, Address);
+	APlayerController* PlayerController = GetGameInstance()->GetFirstLocalPlayerController();
+	if (PlayerController) {
+		PlayerController->ClientTravel(Address, ETravelType::TRAVEL_Absolute);
 	}
 }
 
