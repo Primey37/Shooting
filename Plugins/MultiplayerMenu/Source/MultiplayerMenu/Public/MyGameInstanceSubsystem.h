@@ -10,6 +10,13 @@
 /**
  * 
  */
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FMultiplayerOnCreateSessionComplete, bool, bWasSuccessful);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FMultiplayerOnFindSessionsComplete, const TArray<FOnlineSessionSearchResult>& SessionResults, bool bWasSuccessful);
+DECLARE_MULTICAST_DELEGATE_OneParam(FMultiplayerOnJoinSessionComplete, EOnJoinSessionCompleteResult::Type Result);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FMultiplayerOnStartSessionComplete, bool, bWasSuccessful);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FMultiplayerOnDestroySessionComplete, bool, bWasSuccessful);
+
 UCLASS()
 class MULTIPLAYERMENU_API UMyGameInstanceSubsystem : public UGameInstanceSubsystem
 {
@@ -27,6 +34,14 @@ public:
 	void JoinSession(const FOnlineSessionSearchResult& SessionResult);
 	void StartSession();
 	void DestorySession();
+
+	TSharedPtr<FOnlineSessionSettings> LastSessionSettings;
+
+	FMultiplayerOnCreateSessionComplete MultiplayerOnCreateSessionComplete;
+	FMultiplayerOnFindSessionsComplete MultiplayerOnFindSessionsComplete;
+	FMultiplayerOnJoinSessionComplete MultiplayerOnJoinSessionComplete;
+	FMultiplayerOnStartSessionComplete MultiplayerOnStartSessonComplete;
+	FMultiplayerOnDestroySessionComplete MultiplayerOnDestroySessionComplete;
 
 protected:
 	//
@@ -53,4 +68,6 @@ private:
 	FDelegateHandle StartSessionCompleteDelegateHandle;
 	FOnDestroySessionCompleteDelegate DestroySessionCompleteDelegate;
 	FDelegateHandle DestroySessionCompleteDelegateHandle;
+
+	TSharedPtr<FOnlineSessionSearch> LastSessionSearch;
 };
